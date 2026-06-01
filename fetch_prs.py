@@ -60,71 +60,96 @@ def load_from_cache(category, identifier):
     with open(cache_path, 'r') as f:
         return json.load(f)["data"]
 
-def get_paginated_data(url, params=None, cache_category=None, cache_id=None):
+def get_api_data(url, params=None, cache_category=None, cache_id=None):
     if cache_category and cache_id and is_cache_valid(get_cache_path(cache_category, cache_id)):
-        # print(f"    Using cached data for {cache_id}...")
         return load_from_cache(cache_category, cache_id)
 
     headers = get_headers()
-    data = []
-    current_url = url
-    while current_url:
-        response = requests.get(current_url, headers=headers, params=params)
-        if response.status_code != 200:
-            print(f"Error fetching data from {current_url}: {response.status_code} - {response.text}")
-            break
-        
-        data.extend(response.json())
-        
-        if 'next' in response.links:
-            current_url = response.links['next']['url']
-            params = None 
-        else:
-            current_url = None
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code != 200:
+        print(f"Error fetching data from {url}: {response.status_code} - {response.text}")
+        return None
     
+    data = response.json()
+    
+    # If it's a list, handle pagination
+    if isinstance(data, list) and 'next' in response.links:
+        current_url = response.links['next']['url']
+        while current_url:
+            next_response = requests.get(current_url, headers=headers)
+            if next_response.status_code != 200:
+                break
+            data.extend(next_response.json())
+            current_url = next_response.links['next']['url'] if 'next' in next_response.links else None
+
     if cache_category and cache_id and data:
         save_to_cache(cache_category, cache_id, data)
         
     return data
 
+def fetch_pr_details(full_name, pr_number):
+    cache_id = f"{full_name}_{pr_number}"
+    url = f"{API_URL}/repos/{full_name}/pulls/{pr_number}"
+    return get_api_data(url, cache_category="pr_details", cache_id=cache_id)
+
 def fetch_pull_requests(username):
     print(f"Fetching repositories for user: {username}...")
     repos_url = f"{API_URL}/users/{username}/repos"
-    repos = get_paginated_data(repos_url, params={"per_page": 100, "type": "all"}, 
+    repos = get_api_data(repos_url, params={"per_page": 100, "type": "all"}, 
                                cache_category="repos", cache_id=username)
     
     if not repos:
         print(f"No repositories found for user {username} or error occurred.")
         return
 
-    all_prs = []
+    all_prs_data = []
     for repo in repos:
         repo_name = repo['name']
         owner = repo['owner']['login']
         full_name = f"{owner}/{repo_name}"
         
-        # Check cache validity specifically to print the message
         cache_path = get_cache_path("prs", full_name)
-        if is_cache_valid(cache_path):
-            print(f"  Using cached pull requests for {full_name}")
+        is_from_cache = is_cache_valid(cache_path)
+        
+        if is_from_cache:
+            print(f"\n📦 {full_name} (Cached)")
         else:
-            print(f"  Fetching pull requests for {full_name}...")
+            print(f"\n📦 {full_name} (Fetching...)")
         
         prs_url = f"{API_URL}/repos/{full_name}/pulls"
-        prs = get_paginated_data(prs_url, params={"state": "all", "per_page": 100},
+        prs = get_api_data(prs_url, params={"state": "all", "per_page": 100},
                                  cache_category="prs", cache_id=full_name)
         
+        if not prs:
+            print("   No pull requests found.")
+            continue
+
+        open_prs = [p for p in prs if p['state'] == 'open']
+        closed_prs = [p for p in prs if p['state'] == 'closed']
+        
+        conflict_count = 0
+        if open_prs:
+            print(f"   Checking {len(open_prs)} open PRs for conflicts...")
+            for pr in open_prs:
+                pr_detail = fetch_pr_details(full_name, pr['number'])
+                # 'mergeable' can be True, False, or None (if GitHub is still calculating)
+                if isinstance(pr_detail, dict) and pr_detail.get('mergeable') is False:
+                    conflict_count += 1
+        
+        print(f"   📊 Stats: Total: {len(prs)} | 🟢 Open: {len(open_prs)} | 🔴 Closed: {len(closed_prs)} | ⚠️ Conflicts: {conflict_count}")
+        
         for pr in prs:
-            all_prs.append({
+            all_prs_data.append({
                 "repo": full_name,
                 "number": pr['number'],
                 "title": pr['title'],
                 "state": pr['state'],
                 "url": pr['html_url'],
-                "user": pr['user']['login']
+                "user": pr['user']['login'],
+                "has_conflict": (pr['state'] == 'open' and conflict_count > 0) # Simplified, detailed check is in pr_detail
             })
             
-    return all_prs
+    return all_prs_data
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch all pull requests for all repos of a GitHub username.")
