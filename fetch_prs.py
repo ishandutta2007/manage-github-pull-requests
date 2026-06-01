@@ -92,7 +92,7 @@ def fetch_pr_details(full_name, pr_number):
     url = f"{API_URL}/repos/{full_name}/pulls/{pr_number}"
     return get_api_data(url, cache_category="pr_details", cache_id=cache_id)
 
-def fetch_pull_requests(username):
+def fetch_pull_requests(username, include_forks=False):
     print(f"Fetching repositories for user: {username}...")
     repos_url = f"{API_URL}/users/{username}/repos"
     repos = get_api_data(repos_url, params={"per_page": 100, "type": "all"}, 
@@ -104,6 +104,10 @@ def fetch_pull_requests(username):
 
     all_prs_data = []
     for repo in repos:
+        # Check if the repo is a fork and if we should skip it
+        if repo.get('fork') and not include_forks:
+            continue
+
         repo_name = repo['name']
         owner = repo['owner']['login']
         full_name = f"{owner}/{repo_name}"
@@ -146,7 +150,7 @@ def fetch_pull_requests(username):
                 "state": pr['state'],
                 "url": pr['html_url'],
                 "user": pr['user']['login'],
-                "has_conflict": (pr['state'] == 'open' and conflict_count > 0) # Simplified, detailed check is in pr_detail
+                "has_conflict": (pr['state'] == 'open' and conflict_count > 0)
             })
             
     return all_prs_data
@@ -155,6 +159,7 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch all pull requests for all repos of a GitHub username.")
     parser.add_argument("username", nargs='?', help="GitHub username to fetch PRs for")
     parser.add_argument("--username", dest="username_flag", help="GitHub username to fetch PRs for (alternative to positional)")
+    parser.add_argument("--include-forks", action="store_true", help="Include forked repositories (default: False)")
     args = parser.parse_args()
 
     username = args.username_flag if args.username_flag else args.username
@@ -164,7 +169,7 @@ def main():
         print(f"No username provided. Defaulting to: {username}")
 
     try:
-        prs = fetch_pull_requests(username)
+        prs = fetch_pull_requests(username, include_forks=args.include_forks)
         
         if prs:
             print(f"\nFound {len(prs)} pull requests:")

@@ -61,6 +61,13 @@ python fetch_prs.py octocat
 python fetch_prs.py --username google
 ```
 
+### Advanced Options
+- **Include Forked Repos**: By default, the tool ignores repositories you have forked. To include them, use:
+  ```bash
+  python fetch_prs.py --include-forks
+  ```
+
+
 ---
 
 ## 💾 Caching Mechanism
