@@ -102,23 +102,40 @@ def fetch_pull_requests(username, include_forks=False):
         print(f"No repositories found for user {username} or error occurred.")
         return
 
-    all_prs_data = []
-    for repo in repos:
-        # Check if the repo is a fork and if we should skip it
-        if repo.get('fork') and not include_forks:
-            continue
+    # Pre-filter repos to get an accurate count for progress tracking
+    filtered_repos = [r for r in repos if include_forks or r.get('fork') is not True]
+    total_repos = len(filtered_repos)
+    
+    if total_repos == 0:
+        print("No matching repositories to process.")
+        return
 
+    print(f"Processing {total_repos} repositories...")
+    
+    all_prs_data = []
+    start_time = time.time()
+    
+    for idx, repo in enumerate(filtered_repos, 1):
         repo_name = repo['name']
         owner = repo['owner']['login']
         full_name = f"{owner}/{repo_name}"
         
+        # Calculate timing and ETA
+        elapsed = time.time() - start_time
+        avg_time_per_repo = elapsed / (idx - 1) if idx > 1 else 0
+        remaining_repos = total_repos - (idx - 1)
+        eta_seconds = avg_time_per_repo * remaining_repos
+        
+        elapsed_str = str(timedelta(seconds=int(elapsed)))
+        eta_str = str(timedelta(seconds=int(eta_seconds))) if idx > 1 else "--:--:--"
+        
+        progress_header = f"[{idx}/{total_repos}] | Elapsed: {elapsed_str} | ETA: {eta_str}"
+        
         cache_path = get_cache_path("prs", full_name)
         is_from_cache = is_cache_valid(cache_path)
         
-        if is_from_cache:
-            print(f"\n📦 {full_name} (Cached)")
-        else:
-            print(f"\n📦 {full_name} (Fetching...)")
+        status = "(Cached)" if is_from_cache else "(Fetching...)"
+        print(f"\n{progress_header} \n📦 {full_name} {status}")
         
         prs_url = f"{API_URL}/repos/{full_name}/pulls"
         prs = get_api_data(prs_url, params={"state": "all", "per_page": 100},
