@@ -159,6 +159,18 @@ def fetch_pull_requests(username, include_forks=False):
         
         print(f"   📊 Stats: Total: {len(prs)} | 🟢 Open: {len(open_prs)} | 🔴 Closed: {len(closed_prs)} | ⚠️ Conflicts: {conflict_count}")
         
+        if open_prs:
+            print("\n      " + "-" * 100)
+            print(f"      {'#':<5} | {'Title':<50} | {'Author':<15} | {'Conflict'}")
+            print("      " + "-" * 100)
+            for pr in open_prs:
+                # Re-fetch or use cached details to get conflict status again for the table
+                pr_detail = fetch_pr_details(full_name, pr['number'])
+                conflict_status = "⚠️ YES" if isinstance(pr_detail, dict) and pr_detail.get('mergeable') is False else "✅ NO"
+                title_truncated = (pr['title'][:47] + '..') if len(pr['title']) > 50 else pr['title']
+                print(f"      {pr['number']:<5} | {title_truncated:<50} | {pr['user']['login']:<15} | {conflict_status}")
+            print("      " + "-" * 100 + "\n")
+
         for pr in prs:
             all_prs_data.append({
                 "repo": full_name,
