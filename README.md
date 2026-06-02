@@ -31,7 +31,20 @@ Create a `.env` file in the root directory and add your GitHub Admin Token:
 ```env
 ADMIN_TOKEN=your_github_pat_here
 ```
-> **Note**: Ensure your token has `repo` and `read:org` permissions to access private data if required.
+
+#### 🔑 Required Token Permissions
+To use the **Interactive Cleanup** feature (closing PRs with comments), your Fine-grained PAT must be configured with specific repository permissions:
+
+1. **Go to Settings**: Open your [GitHub Token Settings](https://github.com/settings/personal-access-tokens).
+2. **Edit Token**: Click on the name of the token used in your `.env`.
+3. **Repository Access**: Ensure the token has access to the repositories you want to manage.
+4. **Permissions**: Under **Repository permissions**, set the following:
+   - **Pull requests**: `Read and Write` (Required to close the PR).
+   - **Issues**: `Read and Write` (Required to post the "merge conflict" comment).
+5. **Save**: Click **Update token** at the bottom.
+
+> **Note**: Standard tokens (Classic) require the `repo` scope.
+
 
 ### 3. Install Dependencies
 ```bash

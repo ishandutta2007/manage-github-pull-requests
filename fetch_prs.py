@@ -200,6 +200,25 @@ def fetch_pull_requests(username, include_forks=False):
             
     return all_prs_data, global_conflicted_prs
 
+def close_pull_request(full_name, pr_number, comment):
+    headers = get_headers()
+    
+    # 1. Add the "merge conflict" comment
+    comment_url = f"{API_URL}/repos/{full_name}/issues/{pr_number}/comments"
+    comment_resp = requests.post(comment_url, headers=headers, json={"body": comment})
+    if comment_resp.status_code != 201:
+        print(f"      ❌ Failed to add comment: {comment_resp.status_code} - {comment_resp.text}")
+        return False
+
+    # 2. Close the pull request
+    close_url = f"{API_URL}/repos/{full_name}/pulls/{pr_number}"
+    close_resp = requests.patch(close_url, headers=headers, json={"state": "closed"})
+    if close_resp.status_code != 200:
+        print(f"      ❌ Failed to close PR: {close_resp.status_code} - {close_resp.text}")
+        return False
+    
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch all pull requests for all repos of a GitHub username.")
     parser.add_argument("username", nargs='?', help="GitHub username to fetch PRs for")
@@ -228,6 +247,27 @@ def main():
             print("-" * 125)
             print(f"Total Blocker PRs: {len(conflicted_prs)}")
             print("=" * 125 + "\n")
+
+            # INTERACTIVE SECTION
+            print("🛠️  Interactive Cleanup: Would you like to close these conflicted PRs?")
+            print("Confirming 'y' will add a comment and close the PR on GitHub.")
+            
+            for pr in conflicted_prs:
+                print(f"\n      PR: {pr['title']}")
+                print(f"      URL: {pr['url']}")
+                prompt = f"      Close [{pr['repo']}] #{pr['number']}? (y/N): "
+                choice = input(prompt).strip().lower()
+                
+                if choice == 'y':
+                    comment_text = "this change has merge conflicts, please make changes on the latest main branch and send us a PR again"
+                    print(f"   🚀 Processing #{pr['number']}...")
+                    if close_pull_request(pr['repo'], pr['number'], comment_text):
+                        print(f"   ✅ Successfully commented and closed.")
+                    else:
+                        print(f"   ⚠️  Manual intervention required for #{pr['number']}.")
+                else:
+                    print(f"   ⏩ Skipping #{pr['number']}.")
+            print("\n" + "=" * 125 + "\n")
         else:
             print("\n" + "=" * 125)
             print("🎉 FINAL SUMMARY: NO MERGE CONFLICTS FOUND")
