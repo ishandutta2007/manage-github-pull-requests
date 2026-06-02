@@ -100,7 +100,7 @@ def fetch_pull_requests(username, include_forks=False):
     
     if not repos:
         print(f"No repositories found for user {username} or error occurred.")
-        return
+        return [], []
 
     # Pre-filter repos to get an accurate count for progress tracking
     filtered_repos = [r for r in repos if include_forks or r.get('fork') is not True]
@@ -108,11 +108,12 @@ def fetch_pull_requests(username, include_forks=False):
     
     if total_repos == 0:
         print("No matching repositories to process.")
-        return
+        return [], []
 
     print(f"Processing {total_repos} repositories...")
     
     all_prs_data = []
+    global_conflicted_prs = []
     start_time = time.time()
     
     for idx, repo in enumerate(filtered_repos, 1):
@@ -148,28 +149,36 @@ def fetch_pull_requests(username, include_forks=False):
         open_prs = [p for p in prs if p['state'] == 'open']
         closed_prs = [p for p in prs if p['state'] == 'closed']
         
-        conflict_count = 0
+        repo_conflicts = []
         if open_prs:
             print(f"   Checking {len(open_prs)} open PRs for conflicts...")
             for pr in open_prs:
                 pr_detail = fetch_pr_details(full_name, pr['number'])
                 # 'mergeable' can be True, False, or None (if GitHub is still calculating)
                 if isinstance(pr_detail, dict) and pr_detail.get('mergeable') is False:
-                    conflict_count += 1
+                    conflict_info = {
+                        "repo": full_name,
+                        "number": pr['number'],
+                        "title": pr['title'],
+                        "user": pr['user']['login'],
+                        "url": pr['html_url']
+                    }
+                    repo_conflicts.append(conflict_info)
+                    global_conflicted_prs.append(conflict_info)
         
-        print(f"   📊 Stats: Total: {len(prs)} | 🟢 Open: {len(open_prs)} | 🔴 Closed: {len(closed_prs)} | ⚠️ Conflicts: {conflict_count}")
+        print(f"   📊 Stats: Total: {len(prs)} | 🟢 Open: {len(open_prs)} | 🔴 Closed: {len(closed_prs)} | ⚠️ Conflicts: {len(repo_conflicts)}")
         
         if open_prs:
-            print("\n      " + "-" * 100)
-            print(f"      {'#':<5} | {'Title':<50} | {'Author':<15} | {'Conflict'}")
-            print("      " + "-" * 100)
+            print("\n      " + "-" * 110)
+            print(f"      {'#':<5} | {'Title':<50} | {'Author':<20} | {'Conflict'}")
+            print("      " + "-" * 110)
             for pr in open_prs:
-                # Re-fetch or use cached details to get conflict status again for the table
-                pr_detail = fetch_pr_details(full_name, pr['number'])
-                conflict_status = "⚠️ YES" if isinstance(pr_detail, dict) and pr_detail.get('mergeable') is False else "✅ NO"
+                # Find if this PR is in the repo_conflicts list we just built
+                is_conflicted = any(c['number'] == pr['number'] for c in repo_conflicts)
+                conflict_status = "⚠️ YES" if is_conflicted else "✅ NO"
                 title_truncated = (pr['title'][:47] + '..') if len(pr['title']) > 50 else pr['title']
-                print(f"      {pr['number']:<5} | {title_truncated:<50} | {pr['user']['login']:<15} | {conflict_status}")
-            print("      " + "-" * 100 + "\n")
+                print(f"      {pr['number']:<5} | {title_truncated:<50} | {pr['user']['login']:<20} | {conflict_status}")
+            print("      " + "-" * 110 + "\n")
 
         for pr in prs:
             all_prs_data.append({
@@ -178,11 +187,10 @@ def fetch_pull_requests(username, include_forks=False):
                 "title": pr['title'],
                 "state": pr['state'],
                 "url": pr['html_url'],
-                "user": pr['user']['login'],
-                "has_conflict": (pr['state'] == 'open' and conflict_count > 0)
+                "user": pr['user']['login']
             })
             
-    return all_prs_data
+    return all_prs_data, global_conflicted_prs
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch all pull requests for all repos of a GitHub username.")
@@ -198,16 +206,27 @@ def main():
         print(f"No username provided. Defaulting to: {username}")
 
     try:
-        prs = fetch_pull_requests(username, include_forks=args.include_forks)
+        all_prs, conflicted_prs = fetch_pull_requests(username, include_forks=args.include_forks)
         
-        if prs:
-            print(f"\nFound {len(prs)} pull requests:")
-            print("-" * 80)
-            for pr in prs:
-                print(f"[{pr['repo']}] #{pr['number']} {pr['title']} ({pr['state']})")
-                print(f"   URL: {pr['url']}")
-                print(f"   Author: {pr['user']}")
-                print("-" * 80)
+        if conflicted_prs:
+            print("\n" + "=" * 125)
+            print("🚨 FINAL SUMMARY: OPEN PULL REQUESTS WITH MERGE CONFLICTS")
+            print("=" * 125)
+            print(f"{'Repository':<40} | {'#':<5} | {'Title':<50} | {'Author'}")
+            print("-" * 125)
+            for pr in conflicted_prs:
+                title_truncated = (pr['title'][:47] + '..') if len(pr['title']) > 50 else pr['title']
+                print(f"{pr['repo']:<40} | {pr['number']:<5} | {title_truncated:<50} | {pr['user']}")
+            print("-" * 125)
+            print(f"Total Blocker PRs: {len(conflicted_prs)}")
+            print("=" * 125 + "\n")
+        else:
+            print("\n" + "=" * 125)
+            print("🎉 FINAL SUMMARY: NO MERGE CONFLICTS FOUND")
+            print("=" * 125 + "\n")
+
+        if all_prs:
+            print(f"Completed! Processed a total of {len(all_prs)} pull requests.")
         else:
             print("No pull requests found.")
             
