@@ -1,95 +1,77 @@
-# 🚀 GitHub Pull Request Fetcher
+# 🚀 GitHub Pull Request Fetcher & Cleanup Tool
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub API](https://img.shields.io/badge/API-GitHub%20REST-lightgrey.svg)](https://docs.github.com/en/rest)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/ishandutta2007/manage-github-pull-requests/graphs/commit-activity)
 
-A powerful, efficient CLI tool designed to fetch all pull requests across all repositories for any GitHub user. Built with performance in mind, it features intelligent local caching and seamless API integration.
+An advanced, performance-optimized CLI utility designed for GitHub maintainers. It fetches, analyzes, and manages pull requests across hundreds of repositories with ease.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **🔍 Comprehensive Search**: Fetches PRs from every repository owned by a user.
-- **⚡ Intelligent Caching**: Local disk caching with a 24-hour TTL to save API rate limits and improve speed.
-- **📄 Pagination Support**: Automatically handles GitHub API pagination for users with hundreds of repos or PRs.
-- **🛠️ Flexible CLI**: Use positional arguments or flags, with a sensible default for quick lookups.
-- **🔒 Secure**: Uses `.env` files to protect your sensitive GitHub Personal Access Tokens.
+- **🔍 Deep PR Analysis**: Automatically detects merge conflicts in open pull requests by inspecting repository internals.
+- **🛠️ Interactive Cleanup**: Close conflicted PRs directly from the terminal with standardized feedback comments. Supports individual confirmation or "Yes to All" ([y/N/a]).
+- **⚡ Intelligent Caching**: 
+  - **24-hour TTL**: Local JSON caching of repos, PR lists, and deep details.
+  - **Auto-Sync**: Automatically invalidates local cache when you close a PR through the tool.
+  - **Zero-PR Optimization**: Correctly caches repositories with no PRs to maximize speed.
+- **⏱️ Progress & ETA Monitoring**: Real-time tracking of processing progress, elapsed time, and dynamic ETA calculation.
+- **📄 Full Pagination**: Seamlessly handles accounts with massive repository counts and deep PR histories.
+- **📂 Fork Filtering**: Automatically ignores forked repositories by default to focus on original content.
 
 ---
 
 ## 🛠️ Installation
 
-### 1. Clone the Repository
+### 1. Clone & Setup
 ```bash
-git clone https://github.com/yourusername/manage-github-pull-requests.git
+git clone https://github.com/ishandutta2007/manage-github-pull-requests.git
 cd manage-github-pull-requests
+pip install -r requirements.txt
 ```
 
-### 2. Set Up Environment Variables
-Create a `.env` file in the root directory and add your GitHub Admin Token:
+### 2. Configure Environment
+Create a `.env` file in the root directory:
 ```env
-ADMIN_TOKEN=your_github_pat_here
+ADMIN_TOKEN=your_github_fine_grained_pat
 ```
 
 #### 🔑 Required Token Permissions
-To use the **Interactive Cleanup** feature (closing PRs with comments), your Fine-grained PAT must be configured with specific repository permissions:
-
-1. **Go to Settings**: Open your [GitHub Token Settings](https://github.com/settings/personal-access-tokens).
-2. **Edit Token**: Click on the name of the token used in your `.env`.
-3. **Repository Access**: Ensure the token has access to the repositories you want to manage.
-4. **Permissions**: Under **Repository permissions**, set the following:
-   - **Pull requests**: `Read and Write` (Required to close the PR).
-   - **Issues**: `Read and Write` (Required to post the "merge conflict" comment).
-5. **Save**: Click **Update token** at the bottom.
-
-> **Note**: Standard tokens (Classic) require the `repo` scope.
-
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+To enable the **Interactive Cleanup** feature, your PAT needs **Read and Write** access for:
+1. **Go to Settings**: [GitHub Fine-grained Tokens](https://github.com/settings/personal-access-tokens)
+2. **Pull requests**: `Read and Write`
+3. **Issues**: `Read and Write` (Required for posting closure comments)
 
 ---
 
 ## 🚀 Usage
 
-The tool is designed to be simple and intuitive.
+### Basic Commands
+| Goal | Command |
+| :--- | :--- |
+| **Default Run** | `python fetch_prs.py` |
+| **Target User** | `python fetch_prs.py <username>` |
+| **Specific User Flag** | `python fetch_prs.py --username <username>` |
+| **Include Forks** | `python fetch_prs.py --include-forks` |
 
-### Default Usage
-Fetch PRs for the default user (`ishandutta2007`):
-```bash
-python fetch_prs.py
-```
-
-### Search Specific User
-Provide the username as a positional argument:
-```bash
-python fetch_prs.py octocat
-```
-
-### Using Flags
-```bash
-python fetch_prs.py --username google
-```
-
-### Advanced Options
-- **Include Forked Repos**: By default, the tool ignores repositories you have forked. To include them, use:
-  ```bash
-  python fetch_prs.py --include-forks
-  ```
-
+### Interactive Cleanup Modes
+When the script identifies PRs with conflicts, you will be prompted:
+- **`y`**: Close this PR with a standardized conflict comment.
+- **`N`**: Skip this PR (Default).
+- **`a`**: **Yes to All**. Automatically close all remaining conflicted PRs in the session.
 
 ---
 
-## 💾 Caching Mechanism
+## 💾 Cache Management
 
-To prevent hitting GitHub's API rate limits and to provide near-instant results on subsequent runs, this tool implements a local caching layer:
+The tool maintains a structured cache in the `.cache/` directory:
+- `repos/`: List of user repositories.
+- `prs/`: List of PRs per repository.
+- `pr_details/`: Deep metadata for specific PRs (used for conflict detection).
 
-- **Storage**: Data is stored in the `.cache/` directory.
-- **TTL (Time To Live)**: Cache expires after **24 hours**.
-- **Efficiency**: Only refetches data from GitHub if the local copy is stale or missing.
+**Note**: Closing a PR via the tool triggers an immediate `clear_cache()` for that repository, ensuring your next run reflects the updated state.
 
 ---
 
@@ -97,24 +79,12 @@ To prevent hitting GitHub's API rate limits and to provide near-instant results 
 
 ```text
 .
-├── .cache/               # Local API response storage (auto-generated)
-├── .env                  # Your private GitHub token (DO NOT COMMIT)
-├── fetch_prs.py          # Main execution script
-├── requirements.txt      # Python dependencies
-└── README.md             # This documentation
+├── .cache/               # Multi-layer JSON cache
+├── .env                  # Private GitHub token
+├── fetch_prs.py          # Advanced CLI Logic
+├── requirements.txt      # Dependencies
+└── README.md             # Documentation
 ```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to open an issue or submit a pull request for any improvements.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ---
 
@@ -139,5 +109,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 <p align="center">
-  Made with ❤️ for developers who love automation.
+  Made with ❤️ for efficient GitHub maintenance.
 </p>
