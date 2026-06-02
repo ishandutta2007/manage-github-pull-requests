@@ -250,13 +250,21 @@ def main():
 
             # INTERACTIVE SECTION
             print("🛠️  Interactive Cleanup: Would you like to close these conflicted PRs?")
-            print("Confirming 'y' will add a comment and close the PR on GitHub.")
+            print("Options: [y]es, [N]o (default), [a]ll (yes to all remaining)")
             
+            yes_to_all = False
             for pr in conflicted_prs:
                 print(f"\n      PR: {pr['title']}")
                 print(f"      URL: {pr['url']}")
-                prompt = f"      Close [{pr['repo']}] #{pr['number']}? (y/N): "
-                choice = input(prompt).strip().lower()
+                
+                if yes_to_all:
+                    choice = 'y'
+                else:
+                    prompt = f"      Close [{pr['repo']}] #{pr['number']}? (y/N/a): "
+                    choice = input(prompt).strip().lower()
+                    if choice == 'a':
+                        yes_to_all = True
+                        choice = 'y'
                 
                 if choice == 'y':
                     comment_text = "this change has merge conflicts, please make changes on the latest main branch and send us a PR again"
