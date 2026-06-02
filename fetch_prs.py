@@ -60,6 +60,14 @@ def load_from_cache(category, identifier):
     with open(cache_path, 'r') as f:
         return json.load(f)["data"]
 
+def clear_cache(category, identifier):
+    cache_path = get_cache_path(category, identifier)
+    if os.path.exists(cache_path):
+        try:
+            os.remove(cache_path)
+        except OSError:
+            pass
+
 def get_api_data(url, params=None, cache_category=None, cache_id=None):
     if cache_category and cache_id:
         cache_path = get_cache_path(cache_category, cache_id)
@@ -271,6 +279,9 @@ def main():
                     print(f"   🚀 Processing #{pr['number']}...")
                     if close_pull_request(pr['repo'], pr['number'], comment_text):
                         print(f"   ✅ Successfully commented and closed.")
+                        # Clear cache so next run reflects the change
+                        clear_cache("prs", pr['repo'])
+                        clear_cache("pr_details", f"{pr['repo']}_{pr['number']}")
                     else:
                         print(f"   ⚠️  Manual intervention required for #{pr['number']}.")
                 else:
