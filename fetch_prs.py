@@ -61,14 +61,19 @@ def load_from_cache(category, identifier):
         return json.load(f)["data"]
 
 def get_api_data(url, params=None, cache_category=None, cache_id=None):
-    if cache_category and cache_id and is_cache_valid(get_cache_path(cache_category, cache_id)):
-        return load_from_cache(cache_category, cache_id)
+    if cache_category and cache_id:
+        cache_path = get_cache_path(cache_category, cache_id)
+        # print(f"DEBUG: Checking cache for {cache_id} at {cache_path}")
+        if is_cache_valid(cache_path):
+            return load_from_cache(cache_category, cache_id), True
+        # else:
+        #    print(f"DEBUG: Cache invalid for {cache_path}")
 
     headers = get_headers()
     response = requests.get(url, headers=headers, params=params)
     if response.status_code != 200:
         print(f"Error fetching data from {url}: {response.status_code} - {response.text}")
-        return None
+        return None, False
     
     data = response.json()
     
@@ -82,22 +87,28 @@ def get_api_data(url, params=None, cache_category=None, cache_id=None):
             data.extend(next_response.json())
             current_url = next_response.links['next']['url'] if 'next' in next_response.links else None
 
-    if cache_category and cache_id and data:
+    if cache_category and cache_id and data is not None:
         save_to_cache(cache_category, cache_id, data)
         
-    return data
+    return data, False
 
 def fetch_pr_details(full_name, pr_number):
     cache_id = f"{full_name}_{pr_number}"
     url = f"{API_URL}/repos/{full_name}/pulls/{pr_number}"
-    return get_api_data(url, cache_category="pr_details", cache_id=cache_id)
+    data, _ = get_api_data(url, cache_category="pr_details", cache_id=cache_id)
+    return data
 
 def fetch_pull_requests(username, include_forks=False):
     print(f"Fetching repositories for user: {username}...")
     repos_url = f"{API_URL}/users/{username}/repos"
-    repos = get_api_data(repos_url, params={"per_page": 100, "type": "all"}, 
+    repos, repos_from_cache = get_api_data(repos_url, params={"per_page": 100, "type": "all"}, 
                                cache_category="repos", cache_id=username)
     
+    if repos_from_cache:
+        print(f"✅ Retrieved repository list from cache.")
+    else:
+        print(f"🌐 Fetched repository list from API.")
+
     if not repos:
         print(f"No repositories found for user {username} or error occurred.")
         return [], []
@@ -132,15 +143,12 @@ def fetch_pull_requests(username, include_forks=False):
         
         progress_header = f"[{idx}/{total_repos}] | Elapsed: {elapsed_str} | ETA: {eta_str}"
         
-        cache_path = get_cache_path("prs", full_name)
-        is_from_cache = is_cache_valid(cache_path)
-        
-        status = "(Cached)" if is_from_cache else "(Fetching...)"
-        print(f"\n{progress_header} \n📦 {full_name} {status}")
-        
         prs_url = f"{API_URL}/repos/{full_name}/pulls"
-        prs = get_api_data(prs_url, params={"state": "all", "per_page": 100},
+        prs, is_from_cache = get_api_data(prs_url, params={"state": "all", "per_page": 100},
                                  cache_category="prs", cache_id=full_name)
+        
+        status = "(Retrieving from cache...)" if is_from_cache else "(Fetching from API...)"
+        print(f"\n{progress_header} \n📦 {full_name} {status}")
         
         if not prs:
             print("   No pull requests found.")
