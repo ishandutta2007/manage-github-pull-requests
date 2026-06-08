@@ -9,5 +9,5 @@ __all__ = [
     "get_api_data",
     "fetch_pr_details",
     "close_pull_request",
-    "get_repositories"
+    "get_repositories",
 ]
