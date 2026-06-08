@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub API](https://img.shields.io/badge/API-GitHub%20REST-lightgrey.svg)](https://docs.github.com/en/rest)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/ishandutta2007/manage-github-pull-requests/graphs/commit-activity)
+![GitHub followers](https://img.shields.io/github/followers/ishandutta2007?label=Follow)
 
 An advanced, performance-optimized CLI utility designed for GitHub maintainers. It fetches, analyzes, and manages pull requests across hundreds of repositories with ease.
 
@@ -103,6 +104,7 @@ The tool maintains a structured cache in the `.cache/` directory:
 ## ⚖️ License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+![GitHub followers](https://img.shields.io/github/followers/ishandutta2007?label=Follow)
 
 ---
 
@@ -121,5 +123,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 <p align="center">
-  Made with ❤️ for efficient GitHub maintenance.
+  Made with ❤️ for efficient GitHub maintenance.<img alt="GitHub followers" src="https://img.shields.io/github/followers/ishandutta2007?label=Follow">
 </p>
