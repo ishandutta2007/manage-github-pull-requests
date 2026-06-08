@@ -48,19 +48,30 @@ To enable the **Interactive Cleanup** feature, your PAT needs **Read and Write**
 
 ## 🚀 Usage
 
-### Basic Commands
+The tool suite includes two specialized scripts for repository maintenance.
+
+### 1. Merge Conflict Cleanup (`fetch_prs_and_close_conflicting.py`)
+Scans all repositories and identifies open PRs that cannot be merged due to conflicts.
+
 | Goal | Command |
 | :--- | :--- |
-| **Default Run** | `python fetch_prs.py` |
-| **Target User** | `python fetch_prs.py <username>` |
-| **Specific User Flag** | `python fetch_prs.py --username <username>` |
-| **Include Forks** | `python fetch_prs.py --include-forks` |
+| **Default Run** | `python fetch_prs_and_close_conflicting.py` |
+| **Target Owner** | `python fetch_prs_and_close_conflicting.py <username>` |
+| **Include Forks** | `python fetch_prs_and_close_conflicting.py --include-forks` |
+
+### 2. User-Specific Cleanup (`fetch_prs_and_close_from_user.py`)
+Scans repositories and identifies open PRs submitted by a specific user (e.g., to clean up bot spam or specific contributors).
+
+| Goal | Command |
+| :--- | :--- |
+| **Standard Run** | `python fetch_prs_and_close_from_user.py --target-user <username>` |
+| **Custom Owner** | `python fetch_prs_and_close_from_user.py --owner <org> --target-user <bot>` |
 
 ### Interactive Cleanup Modes
-When the script identifies PRs with conflicts, you will be prompted:
-- **`y`**: Close this PR with a standardized conflict comment.
+Both scripts support an interactive confirmation loop when blockers are identified:
+- **`y`**: Close this PR with a standardized comment.
 - **`N`**: Skip this PR (Default).
-- **`a`**: **Yes to All**. Automatically close all remaining conflicted PRs in the session.
+- **`a`**: **Yes to All**. Automatically close all remaining identified PRs in the session.
 
 ---
 
@@ -81,7 +92,8 @@ The tool maintains a structured cache in the `.cache/` directory:
 .
 ├── .cache/               # Multi-layer JSON cache
 ├── .env                  # Private GitHub token
-├── fetch_prs.py          # Advanced CLI Logic
+├── fetch_prs_and_close_conflicting.py          # Advanced CLI Logic
+├── fetch_prs_and_close_from_user.py            # Advanced CLI Logic
 ├── requirements.txt      # Dependencies
 └── README.md             # Documentation
 ```
