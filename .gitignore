@@ -2,7 +2,6 @@
 *.bk
 *.env
 .cache
-__pycache__/*
+__pycache__/
 contributors.txt
 temp_repo_clone
-github_tool/__pycache__/
